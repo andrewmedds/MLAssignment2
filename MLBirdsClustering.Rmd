@@ -1,0 +1,249 @@
+---
+title: "MLBirdsARM"
+author: "Andrew Edds"
+date: "10/3/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+##### INSTALLING NECESSCARY PACKAGES ##### 
+##### complete as needed
+
+#install.packages("tm")
+#install.packages('wordcloud')
+#install.packages('quanteda')
+#install.packages('slam')
+#install.packages('proxy')
+#install.packages('tidytext')
+#install.packages('factoextra')
+#install.packages('mclust')
+#install.packages('textstem')
+#install.packages('amap')
+#install.packages('networkD3')
+#install.packages('dbscan')
+```
+
+```{r}
+##### LOADING LIBRARIES ##### 
+
+library(tm)
+library(stringr)
+library(wordcloud)
+library(slam)
+library(quanteda)
+library(SnowballC)
+library(proxy)
+library(cluster)
+library(stringi)
+library(Matrix)
+library(tidytext) # convert DTM to DF
+library(plyr) ## for adply
+library(ggplot2)
+library(factoextra) # for fviz
+library(mclust) # for Mclust EM clustering
+library(textstem)  ## Needed for lemmatize_strings
+library(amap)  ## for Kmeans
+library(networkD3)
+library(dbscan)
+```
+
+```{r}
+##### SETTING THE WORKING DIRECTORY AS THE CORPUS ##### 
+##### reproducing this analysis requires the user to load corpus from their directory
+
+setwd('C:/Users/15202/Desktop/Birds_Corpus')
+```
+
+```{r}
+##### LOADING THE CORPUS, TRANSFORMING, AND CLEANING ##### 
+
+BirdsCorpus <- Corpus(DirSource("Birds_Corpus"))
+(getTransformations()) 
+(ndocs<-length(BirdsCorpus))
+
+##### removing punctuation and lemmatizing strings
+BirdsCorpus <- tm_map(BirdsCorpus, content_transformer(tolower))
+BirdsCorpus <- tm_map(BirdsCorpus, removePunctuation)
+BirdsCorpus <- tm_map(BirdsCorpus, lemmatize_strings)
+```
+
+```{r}
+##### LOADING THE DOCUMENT TERM MATRIX ##### 
+
+BirdsDTM <- DocumentTermMatrix(BirdsCorpus,
+                         control = list(
+                           removePunctuation = TRUE,
+                           tolower=TRUE,
+                           remove_separators = TRUE
+                         ))
+
+```
+
+```{r}
+##### TFIDF EXPLORATION #####
+
+weightTfIdf(BirdsDTM, normalize = TRUE)
+```
+
+```{r}
+##### READING MATRIX AND NORMALIZING #####
+
+BirdsMatrix <- as.matrix(BirdsDTM)
+BirdsMatrixNorm <- apply(BirdsMatrix, 1, function(i) round(i/sum(i),3))
+BirdsMatrixNorm <- t(BirdsMatrixNorm)
+
+BirdsDF <- as.data.frame(as.matrix(BirdsDTM))
+```
+
+```{r}
+##### CALCULATING DISTANCE MATRICES #####
+
+DistMatrixEuc <- dist(BirdsMatrix, method="euclidean")
+
+DistMatrixMan <- dist(BirdsMatrix, method="manhattan")
+
+DistMatrixCosine <- dist(BirdsMatrix, method="cosine")
+```
+
+```{r}
+##### HEIRARCHICAL CLUSTERING #####
+
+## Euclidean
+groupsEuc <- hclust(DistMatrixEuc,method="ward.D")
+plot(groupsEuc, cex=0.9, hang=-1, main = "Euclidean")
+rect.hclust(groupsEuc, k=4)
+
+## Manhattan
+groupsMan <- hclust(DistMatrixMan,method="ward.D")
+plot(groupsMan, cex=.7, hang=-30,main = "Manhattan")
+rect.hclust(groupsMan, k=4)
+
+## Cosine Similarity
+groupsCosine <- hclust(DistMatrixCosine,method="ward.D")
+plot(groupsCosine, cex=.7, hang=-30,main = "Cosine Sim")
+rect.hclust(groupsCosine, k=4)
+```
+
+```{r}
+##### RADIAL NETWORKS #####
+
+radialNetwork(as.radialNetwork(groupsEuc))
+radialNetwork(as.radialNetwork(groupsMan))
+radialNetwork(as.radialNetwork(groupsCosine))
+```
+
+```{r}
+##### PLOTTING DISTANCE MATRICES ##### 
+
+fviz_dist(DistMatrixCosine, gradient = list(low = "#00AFBB", 
+                                     mid = "white", high = "#FC4E07"))+
+  ggtitle("Cosine Sim Based Distance Map")
+
+
+distance0 <- get_dist(BirdsMatrixNorm, method = "euclidean")
+fviz_dist(distance0, gradient = list(low = "#00AFBB", 
+                                     mid = "white", high = "#FC4E07"))+
+  ggtitle("Euclidean Based Distance Map")
+
+distance1 <- get_dist(BirdsMatrixNorm,method = "manhattan")
+fviz_dist(distance1, gradient = list(low = "#00AFBB", 
+                                     mid = "white", high = "#FC4E07"))+
+  ggtitle("Manhattan Based Distance Map")
+
+distance2 <- get_dist(BirdsMatrixNorm,method = "pearson")
+fviz_dist(distance2, gradient = list(low = "#00AFBB", 
+                                     mid = "white", high = "#FC4E07"))+
+  ggtitle("Pearson Based Distance Map")
+
+
+distance4 <- get_dist(BirdsMatrixNorm,method = "spearman")
+fviz_dist(distance4, gradient = list(low = "#00AFBB", 
+                                     mid = "white", high = "#FC4E07"))+
+  ggtitle("Spearman Based Distance Map")
+
+```
+
+
+
+```{r}
+##### K-MEANS CLUSTERING - EUCLIDEAN ##### 
+
+BirdsMatrix = BirdsMatrix[,apply(BirdsMatrix, 2, var, na.rm=TRUE) != 0]
+
+kmeansEuc4<-Kmeans(BirdsMatrix, centers=4,method = "euclidean")
+fviz_cluster(kmeansEuc4, BirdsMatrix, main="Euclidean")
+
+kmeansEuc3<-Kmeans(BirdsMatrix, centers=3,method = "euclidean")
+fviz_cluster(kmeansEuc3, BirdsMatrix, main="euclidean")
+
+kmeansEuc2<-Kmeans(BirdsMatrix, centers=2,method = "euclidean")
+fviz_cluster(kmeansEuc2, BirdsMatrix, main="euclidean")
+```
+
+```{r}
+##### K-MEANS CLUSTERING - MANHATTAN ##### 
+
+kmeansMan4<-Kmeans(BirdsMatrix, centers=4,method = "manhattan")
+fviz_cluster(kmeansMan4, BirdsMatrix, main="manhattan")
+
+kmeansMan3<-Kmeans(BirdsMatrix, centers=3,method = "manhattan")
+fviz_cluster(kmeansMan3, BirdsMatrix, main="manhattan")
+
+kmeansMan2<-Kmeans(BirdsMatrix, centers=2,method = "manhattan")
+fviz_cluster(kmeansMan2, BirdsMatrix, main="manhattan")
+```
+
+```{r}
+##### K-MEANS CLUSTERING - SPEARMAN ##### 
+
+kmeansSpear4<-Kmeans(BirdsMatrix, centers=4,method = "spearman")
+fviz_cluster(kmeansSpear4, BirdsMatrix, main="spearman")
+
+kmeansSpear3<-Kmeans(BirdsMatrix, centers=3,method = "spearman")
+fviz_cluster(kmeansSpear3, BirdsMatrix, main="spearman")
+
+kmeansSpear2<-Kmeans(BirdsMatrix, centers=2,method = "spearman")
+fviz_cluster(kmeansSpear2, BirdsMatrix, main="spearman")
+```
+
+
+```{r}
+##### ELBOW AND SILHOUETTE METHODS OF TESTING ##### 
+
+##### Elbow 
+fviz_nbclust(
+  as.matrix(BirdsDTM), 
+  kmeans, 
+  k.max = 8,
+  method = "wss",
+  diss = get_dist(as.matrix(BirdsDTM), method = "manhattan")
+)
+
+fviz_nbclust(
+  as.matrix(BirdsDTM),
+  kmeans, 
+  k.max = 8,
+  method = "wss",
+  diss = get_dist(as.matrix(BirdsDTM), method = "spearman")
+)
+
+#### Silhouette
+fviz_nbclust(BirdsDF, method = "silhouette", 
+             FUN = hcut, k.max = 8)
+```
+
+```{r}
+##### DBSCAN CLUSTERING ##### 
+
+dcscanCluster <- dbscan(BirdsMatrix, eps = 0.1, MinPts = 2)
+dcscanCluster
+  
+dcscanCluster$cluster
+
+fviz_cluster(dcscanCluster, BirdsMatrix, main = "DBScan")
+
+```

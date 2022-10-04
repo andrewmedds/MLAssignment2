@@ -1,0 +1,82 @@
+---
+title: "MLBirdsARM"
+author: "Andrew Edds"
+date: "10/3/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(arules)
+library(rtweet)
+library(twitteR)
+library(ROAuth)
+library(jsonlite)
+library(streamR)
+library(rjson)
+library(tokenizers)
+library(tidyverse)
+library(plyr)
+library(dplyr)
+library(ggplot2)
+library(syuzhet)
+library(stringr)
+library(arulesViz) ## load last
+```
+
+```{r}
+BirdCallTransactions = 'CallTransactions.csv'
+Birds = read.csv("C:/Users/15202/Desktop/Birds_United_States.csv")
+```
+
+```{r}
+calls = file(BirdCallTransactions)
+
+Tokens = tokenizers::tokenize_words(Birds$type[1], stopwords=stopwords::stopwords('en'),
+                                      lowercase=TRUE, strip_punct = TRUE, simplify=TRUE)
+cat(unlist(str_squish(Tokens)), "\n", file=calls,sep=',')
+
+close(calls)
+
+
+
+calls = file(BirdCallTransactions, open='a')
+
+for(i in 2:nrow(Birds)){
+  tokens = tokenizers::tokenize_words(Birds$type[i], stopwords=stopwords::stopwords('en'),
+                                      lowercase=TRUE, strip_punct = TRUE, simplify=TRUE)
+  cat(unlist(str_squish(tokens)), "\n", file=calls,sep=',')
+}
+
+close(calls)
+```
+
+```{r}
+callsTrans <- read.transactions(BirdCallTransactions, rm.duplicates=FALSE,format='basket', sep=',')
+```
+
+
+```{r, results='hide'}
+BirdCallRules = arules :: apriori(callsTrans, parameter=list(support=0.01, confidence = 0.01, minlen=2, maxlen=15))
+```
+
+```{r}
+supportSortedRules <- sort(BirdCallRules, by='support', decreasing=TRUE)
+liftSortedRules <- sort(BirdCallRules, by='lift', decreasing=TRUE)
+confidenceSortedRules <- sort(BirdCallRules, by='confidence', decreasing=TRUE)
+
+inspect(supportSortedRules[1:15])
+inspect(liftSortedRules[1:15])
+inspect(confidenceSortedRules[1:15])
+```
+
+```{r}
+plot(supportSortedRules[1:25], method='graph', engine='htmlwidget', shading = 'confidence')
+```
+```{r}
+plot(liftSortedRules[1:15], method='graph', shading = 'confidence')
+```
+
