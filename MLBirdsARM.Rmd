@@ -10,6 +10,9 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
+##### LOADING THE PACKAGES AND LIBRARIES #####
+##### install as needed
+
 library(arules)
 library(rtweet)
 library(twitteR)
@@ -24,15 +27,19 @@ library(dplyr)
 library(ggplot2)
 library(syuzhet)
 library(stringr)
-library(arulesViz) ## load last
+library(arulesViz)
 ```
 
 ```{r}
+##### CREATING BLANK CSV AND READING BIRDS DATASET ##### 
+
 BirdCallTransactions = 'CallTransactions.csv'
 Birds = read.csv("C:/Users/15202/Desktop/Birds_United_States.csv")
 ```
 
 ```{r}
+##### APENDING BLANK CSV WITH BIRD CALL TRANSACTIONS ##### 
+
 calls = file(BirdCallTransactions)
 
 Tokens = tokenizers::tokenize_words(Birds$type[1], stopwords=stopwords::stopwords('en'),
@@ -55,15 +62,21 @@ close(calls)
 ```
 
 ```{r}
+##### READING AS TRANSACTIONS ##### 
+
 callsTrans <- read.transactions(BirdCallTransactions, rm.duplicates=FALSE,format='basket', sep=',')
 ```
 
 
 ```{r, results='hide'}
+##### RULE MINING ##### 
+
 BirdCallRules = arules :: apriori(callsTrans, parameter=list(support=0.01, confidence = 0.01, minlen=2, maxlen=15))
 ```
 
 ```{r}
+##### SORTING RULES BY SUPPORT, LIFT, AND CONFIDENCE ##### 
+
 supportSortedRules <- sort(BirdCallRules, by='support', decreasing=TRUE)
 liftSortedRules <- sort(BirdCallRules, by='lift', decreasing=TRUE)
 confidenceSortedRules <- sort(BirdCallRules, by='confidence', decreasing=TRUE)
@@ -74,9 +87,12 @@ inspect(confidenceSortedRules[1:15])
 ```
 
 ```{r}
+##### PLOT 1 ##### 
+
 plot(supportSortedRules[1:25], method='graph', engine='htmlwidget', shading = 'confidence')
 ```
 ```{r}
+##### PLOT 2 ##### 
 plot(liftSortedRules[1:15], method='graph', shading = 'confidence')
 ```
 
