@@ -1,0 +1,100 @@
+---
+title: "ML Assignment 3 DT R"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# libraries 
+library(dplyr)
+library(tidyr)
+library(rpart)
+library(caret)
+library(MLmetrics)
+library(naivebayes)
+library(caTools)
+```
+
+```{r}
+# read 
+
+birdsraw <- read.csv("Downloads/birds_united_states.csv")
+birds <- birdsraw
+```
+
+
+## CLEAN 
+```{r}
+birds$birdseen <- as.character(birds$bird.seen)
+birds$playbackused <- as.character(birds$playback.used)
+
+birds <- birds %>% drop_na(birdseen)
+birds$birdseen[birds$birdseen == "yes"] <- 1 
+birds$birdseen[birds$birdseen == "no"] <- 0 
+
+
+birds$playbackused[birds$playbackused == "yes"] <- 1 
+birds$playbackused[birds$playbackused == "no"] <- 0 
+birds$playbackused[birds$playbackused == "unknown"] <- 2
+```
+
+
+```{r}
+# drop vars 
+birds = subset(birds, select = -c(ssp,en,rec,loc,cnt,alt,type,url,file,date,uploaded,also,rmk,file.name,sono,lic,length,time,id,bird.seen,playback.used))
+```
+
+```{r}
+# fill nas 
+birds <- birds %>% replace_na(list(lat = -99999, lng = -99999))
+```
+
+# model prep 
+```{r}
+# datasubset
+birds_birdseen <- filter(birds, birdseen==1) %>% slice(1:2000)
+birds_birdunseen <- filter(birds, birdseen==0) %>% slice(1:2000)
+
+birdssample <- rbind(birds_birdseen, birds_birdunseen)
+```
+
+```{r}
+# train and test 
+sample_bounds <- sample.split(birdssample$birdseen, SplitRatio=0.8) 
+
+train <- subset(birdssample, sample_bounds == TRUE) 
+test <- subset(birdssample, sample_bounds == FALSE) 
+```
+
+```{r}
+# dt model 
+dt <- rpart(birdseen~., data = train, method = 'class')
+
+preds <- predict(dt, test, type='class')
+
+table(preds, test$birdseen)
+```
+
+```{r}
+# dt score
+F1_Score(y_pred = preds, y_true = test$birdseen)
+```
+
+```{r}
+# nb model
+nb <- naive_bayes(birdseen~., data=train, usekernel=T)
+
+length(train$birdseen)
+
+preds <- predict(nb, test)
+
+table(preds, test$birdseen)
+```
+
+```{r}
+# nb score
+F1_Score(y_pred = preds, y_true = test$birdseen)
+```
